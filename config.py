@@ -14,7 +14,9 @@ from datetime import date
 
 SECTIONS = {
     "labor": {
-        "title": "Labor Market — White-Collar vs. Headline",
+        "title": "Labor Market",
+        "subtitle": "White-collar vs. headline employment divergence",
+        "icon": "briefcase",
         "series": [
             ("JTSJOL", "Total Job Openings", "Monthly"),
             ("JTS540099000000000JOL", "Job Openings: Professional & Business Services", "Monthly"),
@@ -28,7 +30,9 @@ SECTIONS = {
         ],
     },
     "consumer": {
-        "title": "Consumer & Household Financial Stress",
+        "title": "Consumer Stress",
+        "subtitle": "Household financial health and credit conditions",
+        "icon": "credit-card",
         "series": [
             ("PSAVERT", "Personal Savings Rate", "Monthly"),
             ("DRCCLACBS", "Credit Card Delinquency Rate", "Quarterly"),
@@ -40,7 +44,9 @@ SECTIONS = {
         ],
     },
     "housing": {
-        "title": "Housing & Mortgage Market",
+        "title": "Housing Market",
+        "subtitle": "Mortgage health and home price dynamics",
+        "icon": "home",
         "series": [
             ("DRSFRMACBS", "Mortgage Delinquency Rate (Single-Family)", "Quarterly"),
             ("CSUSHPINSA", "Case-Shiller National Home Price Index", "Monthly"),
@@ -50,7 +56,9 @@ SECTIONS = {
         ],
     },
     "macro": {
-        "title": 'Macro & Productivity Divergence ("Ghost GDP")',
+        "title": "Ghost GDP",
+        "subtitle": "Productivity vs. labor share divergence",
+        "icon": "trending-up",
         "series": [
             ("GDPC1", "Real GDP", "Quarterly"),
             ("OPHNFB", "Nonfarm Business: Real Output Per Hour", "Quarterly"),
@@ -61,7 +69,9 @@ SECTIONS = {
         ],
     },
     "financial": {
-        "title": "Financial System Stress",
+        "title": "Financial Stress",
+        "subtitle": "Credit spreads and market volatility",
+        "icon": "activity",
         "series": [
             ("BAMLH0A0HYM2", "ICE BofA High Yield OAS", "Daily"),
             ("DRTSCILM", "Bank Lending Standards: C&I Loans (Medium/Large)", "Quarterly"),
@@ -81,33 +91,23 @@ RECESSION_SERIES = "USREC"
 
 THRESHOLDS = {
     "labor": {
-        # Yellow: white-collar openings declining YoY while total flat/up
-        # Red: white-collar employment declining while total nonfarm flat/up
-        "wc_openings_yoy_decline": -0.05,  # -5% YoY for white-collar openings
-        "total_openings_floor": -0.02,  # total openings considered "flat" if > -2%
-        "wc_employment_yoy_decline": 0.0,  # any YoY decline
-        "total_employment_floor": 0.0,  # total nonfarm flat or up
+        "wc_openings_yoy_decline": -0.05,
+        "total_openings_floor": -0.02,
+        "wc_employment_yoy_decline": 0.0,
+        "total_employment_floor": 0.0,
     },
     "consumer": {
-        # Yellow: credit card delinquencies rising QoQ for 2+ quarters
-        # Red: delinquencies > 3.5% AND revolving credit rising
-        "delinquency_red_threshold": 3.5,  # percentage
+        "delinquency_red_threshold": 3.5,
         "consecutive_qoq_rises": 2,
     },
     "housing": {
-        # Yellow: mortgage delinquency increases QoQ for 2+ quarters
-        # Red: exceeds 3%
         "delinquency_red_threshold": 3.0,
         "consecutive_qoq_rises": 2,
     },
     "macro": {
-        # Yellow: labor share drops YoY
-        # Red: productivity rising >2% YoY while unit labor costs falling
-        "productivity_growth_red": 2.0,  # percentage
+        "productivity_growth_red": 2.0,
     },
     "financial": {
-        # Yellow: HY OAS > 450bps
-        # Red: HY OAS > 600bps
         "hy_oas_yellow": 450,
         "hy_oas_red": 600,
     },
@@ -118,8 +118,8 @@ THRESHOLDS = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 AI_MILESTONES = [
-    (date(2022, 11, 30), "ChatGPT Launch"),
-    (date(2023, 3, 14), "GPT-4 Release"),
+    (date(2022, 11, 30), "ChatGPT"),
+    (date(2023, 3, 14), "GPT-4"),
     (date(2024, 2, 15), "Sora / Gemini 1.5"),
     (date(2025, 1, 20), "DeepSeek R1"),
 ]
@@ -130,39 +130,62 @@ AI_MILESTONES = [
 
 DEFAULT_START_DATE = date(2020, 1, 1)
 DATE_RANGE_OPTIONS = {
-    "2020–Present": date(2020, 1, 1),
-    "2015–Present": date(2015, 1, 1),
-    "2010–Present": date(2010, 1, 1),
+    "2020 - Present": date(2020, 1, 1),
+    "2015 - Present": date(2015, 1, 1),
+    "2010 - Present": date(2010, 1, 1),
 }
 
 # Cache settings
 CACHE_DB_PATH = "fred_cache.db"
 CACHE_MAX_AGE_HOURS = 12
 
-# Plotly dark theme colors
+# ──────────────────────────────────────────────────────────────────────────────
+# Apple-inspired light theme palette
+# ──────────────────────────────────────────────────────────────────────────────
+
 COLORS = {
-    "background": "#0e1117",
-    "card_bg": "#1a1d23",
-    "text": "#e0e0e0",
-    "muted_text": "#888888",
-    "green": "#2ecc71",
-    "yellow": "#f39c12",
-    "red": "#e74c3c",
-    "blue": "#3498db",
-    "purple": "#9b59b6",
-    "cyan": "#1abc9c",
-    "orange": "#e67e22",
-    "grid": "#2a2d35",
-    "recession": "rgba(255, 255, 255, 0.07)",
-    "annotation": "rgba(255, 255, 255, 0.3)",
+    # Backgrounds
+    "background": "#f5f5f7",
+    "card_bg": "#ffffff",
+    "sidebar_bg": "#fbfbfd",
+
+    # Text
+    "text": "#1d1d1f",
+    "text_secondary": "#6e6e73",
+    "muted_text": "#86868b",
+
+    # Signals — Apple system colors (refined)
+    "green": "#34c759",
+    "yellow": "#ff9f0a",
+    "red": "#ff3b30",
+    "orange": "#ff9f0a",
+
+    # Chart palette — refined and harmonious
+    "blue": "#007aff",
+    "indigo": "#5856d6",
+    "purple": "#af52de",
+    "teal": "#5ac8fa",
+    "cyan": "#32ade6",
+    "mint": "#00c7be",
+
+    # Chart elements
+    "grid": "#f0f0f2",
+    "grid_line": "rgba(0, 0, 0, 0.06)",
+    "recession": "rgba(0, 0, 0, 0.04)",
+    "annotation": "rgba(0, 0, 0, 0.20)",
+
+    # UI
+    "border": "rgba(0, 0, 0, 0.08)",
+    "divider": "#d2d2d7",
+    "hover": "rgba(0, 0, 0, 0.03)",
 }
 
 # Chart line palette for multi-series overlays
 LINE_PALETTE = [
     COLORS["blue"],
     COLORS["orange"],
-    COLORS["purple"],
-    COLORS["cyan"],
+    COLORS["indigo"],
+    COLORS["teal"],
     COLORS["green"],
     COLORS["red"],
 ]

@@ -1,8 +1,8 @@
 """
 Chart generation module using Plotly.
 
-Each function returns a plotly Figure with dark theme, recession shading,
-and AI milestone annotations.
+Clean, minimal charts inspired by Apple's design language —
+light backgrounds, thin lines, generous whitespace, subtle details.
 """
 
 from datetime import date, datetime
@@ -18,31 +18,65 @@ from config import COLORS, LINE_PALETTE, AI_MILESTONES
 # Shared helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _base_layout() -> dict:
-    """Return the common dark-theme layout dict."""
+def _base_layout(title: str = "") -> dict:
+    """Return the common Apple-inspired light layout dict."""
     return dict(
-        template="plotly_dark",
-        paper_bgcolor=COLORS["card_bg"],
-        plot_bgcolor=COLORS["card_bg"],
-        font=dict(color=COLORS["text"], size=12),
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(
+            family='-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            color=COLORS["text"],
+            size=13,
+        ),
+        title=dict(
+            text=title,
+            font=dict(size=16, color=COLORS["text"]),
+            x=0,
+            xanchor="left",
+            pad=dict(l=8),
+        ),
         legend=dict(
             bgcolor="rgba(0,0,0,0)",
-            font=dict(size=11),
+            font=dict(size=12, color=COLORS["text_secondary"]),
             orientation="h",
             yanchor="bottom",
             y=1.02,
             xanchor="left",
             x=0,
+            itemclick="toggle",
+            itemsizing="constant",
         ),
-        margin=dict(l=60, r=30, t=40, b=50),
-        xaxis=dict(gridcolor=COLORS["grid"], showgrid=True),
-        yaxis=dict(gridcolor=COLORS["grid"], showgrid=True),
+        margin=dict(l=56, r=24, t=56, b=40),
+        xaxis=dict(
+            gridcolor=COLORS["grid_line"],
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            linecolor=COLORS["grid_line"],
+            linewidth=1,
+            tickfont=dict(size=11, color=COLORS["muted_text"]),
+        ),
+        yaxis=dict(
+            gridcolor=COLORS["grid_line"],
+            showgrid=True,
+            zeroline=False,
+            showline=False,
+            tickfont=dict(size=11, color=COLORS["muted_text"]),
+            title_font=dict(size=12, color=COLORS["text_secondary"]),
+        ),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=12,
+            font_family='-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
+            bordercolor=COLORS["border"],
+        ),
     )
 
 
 def _add_recession_shading(fig: go.Figure, recession_data: pd.Series | None, start_date: date):
-    """Add grey shading for NBER recession periods."""
+    """Add subtle shading for NBER recession periods."""
     if recession_data is None or isinstance(recession_data, str):
         return
     rec = recession_data[recession_data.index >= pd.Timestamp(start_date)]
@@ -61,6 +95,7 @@ def _add_recession_shading(fig: go.Figure, recession_data: pd.Series | None, sta
                 fillcolor=COLORS["recession"],
                 layer="below",
                 line_width=0,
+                annotation_text="",
             )
             in_recession = False
     if in_recession and rec_start is not None:
@@ -73,7 +108,7 @@ def _add_recession_shading(fig: go.Figure, recession_data: pd.Series | None, sta
 
 
 def _add_ai_annotations(fig: go.Figure, start_date: date):
-    """Add vertical lines for AI milestones."""
+    """Add minimal vertical markers for AI milestones."""
     for milestone_date, label in AI_MILESTONES:
         if milestone_date < start_date:
             continue
@@ -93,16 +128,6 @@ def _add_ai_annotations(fig: go.Figure, start_date: date):
             font=dict(size=9, color=COLORS["muted_text"]),
             xanchor="right",
             yanchor="top",
-        )
-
-    # Current date dashed line
-    today = date.today()
-    if today >= start_date:
-        fig.add_vline(
-            x=datetime.combine(today, datetime.min.time()),
-            line_dash="dash",
-            line_color=COLORS["muted_text"],
-            line_width=1,
         )
 
 
@@ -125,6 +150,22 @@ def _safe_get(data: dict, key: str) -> pd.Series | None:
     return val
 
 
+def _add_trace_line(fig, x, y, name, color, width=2.5, dash=None, secondary_y=None, hover_template=None):
+    """Add a clean line trace with optional area fill."""
+    kwargs = dict(
+        x=x, y=y,
+        name=name,
+        line=dict(color=color, width=width, shape="spline", smoothing=0.3),
+        hovertemplate=hover_template or "%{y:.1f}<extra>" + name + "</extra>",
+    )
+    if dash:
+        kwargs["line"]["dash"] = dash
+    if secondary_y is not None:
+        fig.add_trace(go.Scatter(**kwargs), secondary_y=secondary_y)
+    else:
+        fig.add_trace(go.Scatter(**kwargs))
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Section 1: Labor Market charts
 # ──────────────────────────────────────────────────────────────────────────────
@@ -132,56 +173,48 @@ def _safe_get(data: dict, key: str) -> pd.Series | None:
 def chart_labor_openings(section_data: dict, recession_data, start_date: date) -> go.Figure:
     """Job openings: total vs. professional services vs. information (indexed to 100)."""
     fig = go.Figure()
-    fig.update_layout(**_base_layout(), title="Job Openings Divergence (Indexed to 100)")
+    fig.update_layout(**_base_layout("Job Openings Divergence"))
 
     series_map = [
-        ("JTSJOL", "Total Job Openings", LINE_PALETTE[0]),
-        ("JTS540099000000000JOL", "Prof. & Business Services", LINE_PALETTE[1]),
-        ("JTS510000000000000JOL", "Information Sector", LINE_PALETTE[2]),
+        ("JTSJOL", "Total", LINE_PALETTE[0]),
+        ("JTS540099000000000JOL", "Prof. & Business", LINE_PALETTE[1]),
+        ("JTS510000000000000JOL", "Information", LINE_PALETTE[2]),
     ]
 
     for sid, name, color in series_map:
         s = _safe_get(section_data, sid)
         if s is not None:
             indexed = _index_to_100(s, start_date)
-            fig.add_trace(go.Scatter(
-                x=indexed.index, y=indexed.values,
-                name=name, line=dict(color=color, width=2),
-                hovertemplate="%{y:.1f}<extra>" + name + "</extra>",
-            ))
+            _add_trace_line(fig, indexed.index, indexed.values, name, color)
 
-    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5)
+    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5, opacity=0.5)
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
-    fig.update_yaxes(title_text="Index (100 = start)")
+    fig.update_yaxes(title_text="Indexed (100 = start)")
     return fig
 
 
 def chart_labor_employment(section_data: dict, recession_data, start_date: date) -> go.Figure:
     """Employment: total nonfarm vs. professional services vs. information (indexed)."""
     fig = go.Figure()
-    fig.update_layout(**_base_layout(), title="Employment Divergence (Indexed to 100)")
+    fig.update_layout(**_base_layout("Employment Divergence"))
 
     series_map = [
-        ("PAYEMS", "Total Nonfarm Payrolls", LINE_PALETTE[0]),
-        ("USPBS", "Prof. & Business Services", LINE_PALETTE[1]),
-        ("CES5000000001", "Information Sector", LINE_PALETTE[2]),
+        ("PAYEMS", "Total Nonfarm", LINE_PALETTE[0]),
+        ("USPBS", "Prof. & Business", LINE_PALETTE[1]),
+        ("CES5000000001", "Information", LINE_PALETTE[2]),
     ]
 
     for sid, name, color in series_map:
         s = _safe_get(section_data, sid)
         if s is not None:
             indexed = _index_to_100(s, start_date)
-            fig.add_trace(go.Scatter(
-                x=indexed.index, y=indexed.values,
-                name=name, line=dict(color=color, width=2),
-                hovertemplate="%{y:.1f}<extra>" + name + "</extra>",
-            ))
+            _add_trace_line(fig, indexed.index, indexed.values, name, color)
 
-    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5)
+    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5, opacity=0.5)
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
-    fig.update_yaxes(title_text="Index (100 = start)")
+    fig.update_yaxes(title_text="Indexed (100 = start)")
     return fig
 
 
@@ -198,31 +231,18 @@ def chart_consumer_stress(section_data: dict, recession_data, start_date: date) 
 
     if revolving is not None:
         r = revolving[revolving.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=r.index, y=r.values,
-                name="Revolving Credit ($B)", line=dict(color=LINE_PALETTE[0], width=2),
-                hovertemplate="$%{y:,.0f}B<extra>Revolving Credit</extra>",
-            ),
-            secondary_y=False,
-        )
+        _add_trace_line(fig, r.index, r.values, "Revolving Credit", LINE_PALETTE[0],
+                        secondary_y=False, hover_template="$%{y:,.0f}B<extra>Revolving Credit</extra>")
 
     if delinquency is not None:
         d = delinquency[delinquency.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=d.index, y=d.values,
-                name="CC Delinquency Rate (%)", line=dict(color=LINE_PALETTE[5], width=2),
-                hovertemplate="%{y:.2f}%<extra>CC Delinquency</extra>",
-            ),
-            secondary_y=True,
-        )
+        _add_trace_line(fig, d.index, d.values, "CC Delinquency Rate", LINE_PALETTE[5],
+                        secondary_y=True, hover_template="%{y:.2f}%<extra>CC Delinquency</extra>")
 
-    layout = _base_layout()
-    layout["title"] = "Consumer Credit Stress: Revolving Credit vs. Delinquency"
+    layout = _base_layout("Consumer Credit Stress")
     fig.update_layout(**layout)
-    fig.update_yaxes(title_text="Revolving Credit ($B)", secondary_y=False, gridcolor=COLORS["grid"])
-    fig.update_yaxes(title_text="Delinquency Rate (%)", secondary_y=True, gridcolor=COLORS["grid"])
+    fig.update_yaxes(title_text="Revolving Credit ($B)", secondary_y=False, gridcolor=COLORS["grid_line"])
+    fig.update_yaxes(title_text="Delinquency Rate (%)", secondary_y=True, gridcolor=COLORS["grid_line"])
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
     return fig
@@ -241,31 +261,18 @@ def chart_housing(section_data: dict, recession_data, start_date: date) -> go.Fi
 
     if delinq is not None:
         d = delinq[delinq.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=d.index, y=d.values,
-                name="Mortgage Delinquency (%)", line=dict(color=LINE_PALETTE[5], width=2),
-                hovertemplate="%{y:.2f}%<extra>Mortgage Delinquency</extra>",
-            ),
-            secondary_y=False,
-        )
+        _add_trace_line(fig, d.index, d.values, "Mortgage Delinquency", LINE_PALETTE[5],
+                        secondary_y=False, hover_template="%{y:.2f}%<extra>Mortgage Delinquency</extra>")
 
     if cs is not None:
         c = cs[cs.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=c.index, y=c.values,
-                name="Case-Shiller Home Price Index", line=dict(color=LINE_PALETTE[0], width=2),
-                hovertemplate="%{y:.1f}<extra>Case-Shiller</extra>",
-            ),
-            secondary_y=True,
-        )
+        _add_trace_line(fig, c.index, c.values, "Case-Shiller Index", LINE_PALETTE[0],
+                        secondary_y=True, hover_template="%{y:.1f}<extra>Case-Shiller</extra>")
 
-    layout = _base_layout()
-    layout["title"] = "Housing: Mortgage Delinquency vs. Home Prices"
+    layout = _base_layout("Mortgage Delinquency vs. Home Prices")
     fig.update_layout(**layout)
-    fig.update_yaxes(title_text="Delinquency Rate (%)", secondary_y=False, gridcolor=COLORS["grid"])
-    fig.update_yaxes(title_text="Case-Shiller Index", secondary_y=True, gridcolor=COLORS["grid"])
+    fig.update_yaxes(title_text="Delinquency Rate (%)", secondary_y=False, gridcolor=COLORS["grid_line"])
+    fig.update_yaxes(title_text="Case-Shiller Index", secondary_y=True, gridcolor=COLORS["grid_line"])
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
     return fig
@@ -282,41 +289,27 @@ def chart_ghost_gdp(section_data: dict, recession_data, start_date: date) -> go.
     indexed_series = [
         ("GDPC1", "Real GDP", LINE_PALETTE[0]),
         ("OPHNFB", "Productivity", LINE_PALETTE[1]),
-        ("CP", "Corporate Profits", LINE_PALETTE[2]),
+        ("CP", "Corp. Profits", LINE_PALETTE[2]),
     ]
 
     for sid, name, color in indexed_series:
         s = _safe_get(section_data, sid)
         if s is not None:
             indexed = _index_to_100(s, start_date)
-            fig.add_trace(
-                go.Scatter(
-                    x=indexed.index, y=indexed.values,
-                    name=name, line=dict(color=color, width=2),
-                    hovertemplate="%{y:.1f}<extra>" + name + "</extra>",
-                ),
-                secondary_y=False,
-            )
+            _add_trace_line(fig, indexed.index, indexed.values, name, color, secondary_y=False)
 
-    # Labor share on secondary axis (different scale)
     labor_share = _safe_get(section_data, "W270RE1A156NBEA")
     if labor_share is not None:
         ls = labor_share[labor_share.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=ls.index, y=ls.values,
-                name="Labor Share of GDP (%)", line=dict(color=LINE_PALETTE[5], width=2, dash="dash"),
-                hovertemplate="%{y:.1f}%<extra>Labor Share</extra>",
-            ),
-            secondary_y=True,
-        )
+        _add_trace_line(fig, ls.index, ls.values, "Labor Share (%)", LINE_PALETTE[5],
+                        dash="dash", secondary_y=True,
+                        hover_template="%{y:.1f}%<extra>Labor Share</extra>")
 
-    layout = _base_layout()
-    layout["title"] = '"Ghost GDP" — Productivity vs. Labor Share Divergence'
+    layout = _base_layout("Productivity vs. Labor Share")
     fig.update_layout(**layout)
-    fig.update_yaxes(title_text="Index (100 = start)", secondary_y=False, gridcolor=COLORS["grid"])
-    fig.update_yaxes(title_text="Labor Share (%)", secondary_y=True, gridcolor=COLORS["grid"])
-    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5, secondary_y=False)
+    fig.update_yaxes(title_text="Indexed (100 = start)", secondary_y=False, gridcolor=COLORS["grid_line"])
+    fig.update_yaxes(title_text="Labor Share (%)", secondary_y=True, gridcolor=COLORS["grid_line"])
+    fig.add_hline(y=100, line_dash="dot", line_color=COLORS["muted_text"], line_width=0.5, opacity=0.5, secondary_y=False)
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
     return fig
@@ -335,31 +328,18 @@ def chart_financial_stress(section_data: dict, recession_data, start_date: date)
 
     if hy_oas is not None:
         h = hy_oas[hy_oas.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=h.index, y=h.values,
-                name="HY OAS (bps)", line=dict(color=LINE_PALETTE[5], width=2),
-                hovertemplate="%{y:.0f} bps<extra>HY OAS</extra>",
-            ),
-            secondary_y=False,
-        )
+        _add_trace_line(fig, h.index, h.values, "HY OAS (bps)", LINE_PALETTE[5],
+                        secondary_y=False, hover_template="%{y:.0f} bps<extra>HY OAS</extra>")
 
     if vix is not None:
         v = vix[vix.index >= pd.Timestamp(start_date)]
-        fig.add_trace(
-            go.Scatter(
-                x=v.index, y=v.values,
-                name="VIX", line=dict(color=LINE_PALETTE[1], width=2),
-                hovertemplate="%{y:.1f}<extra>VIX</extra>",
-            ),
-            secondary_y=True,
-        )
+        _add_trace_line(fig, v.index, v.values, "VIX", LINE_PALETTE[1],
+                        secondary_y=True, hover_template="%{y:.1f}<extra>VIX</extra>")
 
-    layout = _base_layout()
-    layout["title"] = "Financial Stress: High Yield Spreads & VIX"
+    layout = _base_layout("High Yield Spreads & Volatility")
     fig.update_layout(**layout)
-    fig.update_yaxes(title_text="HY OAS (bps)", secondary_y=False, gridcolor=COLORS["grid"])
-    fig.update_yaxes(title_text="VIX", secondary_y=True, gridcolor=COLORS["grid"])
+    fig.update_yaxes(title_text="HY OAS (bps)", secondary_y=False, gridcolor=COLORS["grid_line"])
+    fig.update_yaxes(title_text="VIX", secondary_y=True, gridcolor=COLORS["grid_line"])
     _add_recession_shading(fig, recession_data, start_date)
     _add_ai_annotations(fig, start_date)
     return fig
@@ -377,15 +357,21 @@ def chart_single_series(
     y_title: str = "",
     color: str = LINE_PALETTE[0],
 ) -> go.Figure:
-    """Generic single-series chart with recession shading and annotations."""
+    """Generic single-series chart with subtle area fill."""
     fig = go.Figure()
-    fig.update_layout(**_base_layout(), title=name)
+    fig.update_layout(**_base_layout(name))
 
     s = series[series.index >= pd.Timestamp(start_date)]
+
+    # Parse hex color for subtle fill
+    r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+
     fig.add_trace(go.Scatter(
         x=s.index, y=s.values,
-        name=name, line=dict(color=color, width=2),
-        fill="tozeroy", fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.1)",
+        name=name,
+        line=dict(color=color, width=2.5, shape="spline", smoothing=0.3),
+        fill="tozeroy",
+        fillcolor=f"rgba({r},{g},{b},0.06)",
     ))
 
     fig.update_yaxes(title_text=y_title or name)
