@@ -14,6 +14,7 @@ import streamlit as st
 from config import SECTIONS, COLORS, DATE_RANGE_OPTIONS
 from data import fetch_all_data, build_summary_table, build_export_dataframe, clear_cache, get_fred_client
 from signals import evaluate_all, composite_assessment
+from analysis import generate_analysis
 from charts import (
     chart_labor_openings,
     chart_labor_employment,
@@ -401,6 +402,117 @@ st.markdown("""
         border-top: 1px solid rgba(0, 0, 0, 0.06);
         margin: 24px 0;
     }
+
+    /* ── AI Briefing Card ── */
+    .briefing-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 32px 40px;
+        margin: 0 0 28px 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-left: 4px solid #007aff;
+    }
+
+    .briefing-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .briefing-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #007aff;
+    }
+
+    .briefing-meta {
+        font-size: 0.75rem;
+        color: #aeaeb2;
+    }
+
+    .briefing-cached {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 6px;
+        background: rgba(0, 122, 255, 0.06);
+        color: #007aff;
+        font-size: 0.7rem;
+        font-weight: 500;
+        margin-left: 8px;
+    }
+
+    .briefing-fresh {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 6px;
+        background: rgba(52, 199, 89, 0.08);
+        color: #248a3d;
+        font-size: 0.7rem;
+        font-weight: 500;
+        margin-left: 8px;
+    }
+
+    .briefing-body {
+        font-size: 0.92rem;
+        line-height: 1.75;
+        color: #1d1d1f;
+    }
+
+    .briefing-body h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #1d1d1f;
+        margin: 20px 0 8px 0;
+        letter-spacing: -0.01em;
+    }
+
+    .briefing-body p {
+        margin: 0 0 12px 0;
+    }
+
+    .briefing-body strong {
+        color: #1d1d1f;
+        font-weight: 600;
+    }
+
+    .briefing-body ul, .briefing-body ol {
+        padding-left: 20px;
+        margin: 8px 0 12px 0;
+    }
+
+    .briefing-body li {
+        margin-bottom: 6px;
+        line-height: 1.65;
+    }
+
+    .briefing-setup {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 24px 32px;
+        margin: 0 0 28px 0;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-left: 4px solid #aeaeb2;
+        color: #86868b;
+        font-size: 0.9rem;
+    }
+
+    .briefing-setup a {
+        color: #007aff;
+        text-decoration: none;
+    }
+
+    .briefing-setup code {
+        background: #f5f5f7;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.85em;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -501,6 +613,82 @@ def render_section(section_key: str, data: dict, signals: dict, recession_data, 
         render_supporting_metrics(section_key, section_data, recession_data, start_date)
 
 
+def _render_ai_briefing(data: dict, signals: dict, assessment: tuple):
+    """Render the AI analysis briefing card at the top of the dashboard."""
+    import markdown as _md_module
+
+    has_anthropic_key = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+
+    if not has_anthropic_key:
+        st.markdown(
+            '<div class="briefing-setup">'
+            '<strong>AI Briefing</strong> — Add your Anthropic API key to enable AI-powered market analysis. '
+            'Set <code>ANTHROPIC_API_KEY</code> in your <code>.env</code> file. '
+            'Uses Claude Opus 4.6 for deep analysis with persistent memory.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    with st.spinner("Generating AI briefing..."):
+        result = generate_analysis(data, signals, assessment)
+
+    if result["error"] and result["analysis"] is None:
+        st.warning(f"AI Briefing unavailable: {result['error']}")
+        return
+
+    analysis_md = result["analysis"]
+    is_cached = result["is_cached"]
+    created_at = result["created_at"]
+
+    # Format timestamp
+    timestamp_str = ""
+    if created_at:
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(created_at)
+            timestamp_str = dt.strftime("%b %d, %Y at %I:%M %p")
+        except Exception:
+            timestamp_str = created_at[:16]
+
+    status_badge = (
+        '<span class="briefing-cached">cached — data unchanged</span>'
+        if is_cached
+        else '<span class="briefing-fresh">updated — new data</span>'
+    )
+
+    # Convert markdown to HTML
+    try:
+        analysis_html = _md_module.markdown(analysis_md, extensions=["extra"])
+    except Exception:
+        analysis_html = analysis_md.replace("\n", "<br>")
+
+    # Show error note if API failed but previous analysis is available
+    error_note = ""
+    if result["error"] and result["analysis"]:
+        error_note = (
+            f'<div style="color: #aeaeb2; font-size: 0.78rem; margin-top: 12px; '
+            f'padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05);">'
+            f'Note: {result["error"]}</div>'
+        )
+
+    st.markdown(f"""
+    <div class="briefing-card">
+        <div class="briefing-header">
+            <div>
+                <span class="briefing-title">AI Market Briefing</span>
+                {status_badge}
+            </div>
+            <div class="briefing-meta">{timestamp_str}</div>
+        </div>
+        <div class="briefing-body">
+            {analysis_html}
+        </div>
+        {error_note}
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # API key check
 # ──────────────────────────────────────────────────────────────────────────────
@@ -544,11 +732,16 @@ except ImportError:
     pass
 
 # Also check streamlit secrets
-if not os.environ.get("FRED_API_KEY") and hasattr(st, "secrets"):
+if hasattr(st, "secrets"):
     try:
-        key = st.secrets.get("FRED_API_KEY", "")
-        if key:
-            os.environ["FRED_API_KEY"] = key
+        if not os.environ.get("FRED_API_KEY"):
+            key = st.secrets.get("FRED_API_KEY", "")
+            if key:
+                os.environ["FRED_API_KEY"] = key
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            key = st.secrets.get("ANTHROPIC_API_KEY", "")
+            if key:
+                os.environ["ANTHROPIC_API_KEY"] = key
     except Exception:
         pass
 
@@ -617,6 +810,9 @@ def main():
         <div class="dashboard-subtitle">Tracking divergences between headline economic data and white-collar indicators</div>
     </div>
     """, unsafe_allow_html=True)
+
+    # ── AI Briefing ──
+    _render_ai_briefing(data, signals, (assessment_label, assessment_desc))
 
     # ── Assessment card ──
     statuses = [s for s, _ in signals.values()]

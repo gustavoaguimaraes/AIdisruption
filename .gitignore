@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .env
 fred_cache.db
+analysis_memory.db
 .streamlit/secrets.toml
 *.egg-info/
 dist/
