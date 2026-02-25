@@ -632,7 +632,7 @@ def _render_ai_briefing(data: dict, signals: dict, assessment: tuple):
             '<div class="briefing-setup">'
             '<strong>AI Briefing</strong> — Add your Anthropic API key to enable AI-powered market analysis. '
             'Set <code>ANTHROPIC_API_KEY</code> in your <code>.env</code> file. '
-            'Uses Claude Opus 4.6 for deep analysis with persistent memory.'
+            'Uses Claude Sonnet 4 for deep analysis with persistent memory.'
             '</div>',
             unsafe_allow_html=True,
         )

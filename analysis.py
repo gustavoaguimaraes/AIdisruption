@@ -1,7 +1,7 @@
 """
 AI Market Analysis Engine
 
-Uses Claude Opus 4.6 to generate intelligent, persistent market analysis.
+Uses Claude Sonnet 4 to generate intelligent, persistent market analysis.
 Features:
   - Memory: reads its own previous analysis for continuity
   - Fingerprinting: only regenerates when underlying data changes
@@ -288,7 +288,7 @@ def generate_analysis(data: dict, signals: dict, assessment: tuple) -> dict:
 
         client = anthropic.Anthropic(api_key=api_key)
         response = client.messages.create(
-            model="claude-opus-4-6",
+            model="claude-sonnet-4-20250514",
             max_tokens=1500,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
