@@ -6,7 +6,15 @@ and white-collar-specific indicators to monitor the AI displacement thesis.
 """
 
 import os
+from pathlib import Path
 from datetime import date
+
+# Load .env early, before any module reads env vars
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except ImportError:
+    pass
 
 import pandas as pd
 import streamlit as st
@@ -720,16 +728,6 @@ def show_setup_page():
     """, unsafe_allow_html=True)
     st.stop()
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Load .env if python-dotenv is available
-# ──────────────────────────────────────────────────────────────────────────────
-
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
 
 # Also check streamlit secrets
 if hasattr(st, "secrets"):
